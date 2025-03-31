@@ -111,38 +111,36 @@ const ProfileScreen = () => {
                   <Card className="shadow rounded border-0">
                     <Card.Body>
                       <Card.Title className="mb-3">{quiz.quizName}</Card.Title>
-                      <Card.Text className="text-muted">
-                        <p>
-                          <strong>Score:</strong> {quiz.score}
-                        </p>
-                        <p>
-                          <strong>Progress:</strong>
-                        </p>
-                        <ul className="list-unstyled">
-                          {quiz.progress.map((p, index) => (
-                            <li
-                              key={index}
-                              style={{
-                                backgroundColor: p.isCorrect
-                                  ? "rgba(0, 128, 0, 0.2)"
-                                  : "rgba(255, 0, 0, 0.2)",
-                                borderRadius: "4px",
-                                padding: "4px 8px",
-                                marginBottom: "4px",
-                                transition: "background-color 0.3s ease",
-                              }}
-                            >
-                              <small>
-                                Question {p.question}: {p.answer}
-                              </small>
-                            </li>
-                          ))}
-                        </ul>
-                        <p>
-                          <strong>Completed:</strong>{" "}
-                          {quiz.completed ? "Yes" : "No"}
-                        </p>
-                      </Card.Text>
+                      <div>
+                        <strong>Score:</strong> {quiz.score}
+                      </div>
+                      <div>
+                        <strong>Progress:</strong>
+                      </div>
+                      <ul className="list-unstyled">
+                        {quiz.progress.map((p, index) => (
+                          <li
+                            key={index}
+                            style={{
+                              backgroundColor: p.isCorrect
+                                ? "rgba(0, 128, 0, 0.2)"
+                                : "rgba(255, 0, 0, 0.2)",
+                              borderRadius: "4px",
+                              padding: "4px 8px",
+                              marginBottom: "4px",
+                              transition: "background-color 0.3s ease",
+                            }}
+                          >
+                            <small>
+                              Question "{p.question}" | Answer "{p.answer}"
+                            </small>
+                          </li>
+                        ))}
+                      </ul>
+                      <div>
+                        <strong>Completed:</strong>{" "}
+                        {quiz.completed ? "Yes" : "No"}
+                      </div>
                     </Card.Body>
                   </Card>
                 </Col>

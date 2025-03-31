@@ -46,12 +46,12 @@ const Hero = () => {
               <div className="d-flex">
                 <Button
                   variant="primary"
-                  onClick={() => navigate(`/quiz/random`)}
+                  onClick={() => navigate(`/random_quiz`)}
                   className="me-3"
                 >
                   Random Quiz
                 </Button>
-                {/*  {currentQuiz & !result ? (
+                {currentQuiz?._id && (
                   <Button
                     variant="primary"
                     onClick={() => navigate(`/quiz/${currentQuiz._id}`)}
@@ -59,16 +59,14 @@ const Hero = () => {
                   >
                     Resume Quiz
                   </Button>
-                ) : (
-                  {}
-                )} */}
-                {/* <Button
+                )}
+                <Button
                   variant="primary"
                   onClick={() => navigate("/quizzes")}
                   className="me-3"
                 >
                   Choose Quiz
-                </Button> */}
+                </Button>
                 <Button
                   variant="primary"
                   onClick={() => navigate(`/profile`)}
@@ -91,7 +89,7 @@ const Hero = () => {
               <div className="d-flex">
                 <Button
                   variant="primary"
-                  onClick={() => navigate("/quiz/random")}
+                  onClick={() => navigate("/random_quiz")}
                   className="me-3"
                 >
                   Start Random Quiz

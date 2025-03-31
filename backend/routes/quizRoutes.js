@@ -34,7 +34,7 @@ router.post(
 // Route to create a new quiz
 router.post("/", protect, isAdmin, createQuizValidation, createQuiz);
 //Route to start new quiz by ID
-router.get("/:id/start", protect, idValidation, startQuiz);
+router.post("/:id/start", protect, idValidation, startQuiz);
 
 // Route to get all quizzes
 router.get("/all", protect, getAllQuizzes);

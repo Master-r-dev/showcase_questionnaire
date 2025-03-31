@@ -27,7 +27,7 @@ const router = createBrowserRouter(
       <Route index={true} path="/" element={<HomeScreen />} />
       <Route path="/login" element={<LoginScreen />} />
       <Route path="/register" element={<RegisterScreen />} />
-      <Route path="/quiz/random" element={<RandomQuizScreen />} />
+      <Route path="/random_quiz" element={<RandomQuizScreen />} />
       <Route path="" element={<PrivateRoute />}>
         <Route path="/profile" element={<ProfileScreen />} />
         <Route path="/quizzes" element={<QuizList />} />

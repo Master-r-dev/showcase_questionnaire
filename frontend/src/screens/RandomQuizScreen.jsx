@@ -28,13 +28,14 @@ const RandomQuizScreen = () => {
     useAnswerRandomQuizStepMutation();
   const randomQuiz = useSelector((state) => state.quiz.currentQuiz);
   const lastStep = useSelector((state) => state.quiz.lastStep);
-  const steps = useSelector((state) => state.quiz.steps);
+  const score = useSelector((state) => state.quiz.score);
   // On mount, if there's no quiz, generate one.
   useEffect(() => {
     if (!randomQuiz) {
       generateRandomQuiz({ size: 6 })
         .then((response) => {
           if (response.data) {
+            //clear prev state
             dispatch(setCurrentQuiz(response.data));
           } else {
             console.log(response);
@@ -49,10 +50,10 @@ const RandomQuizScreen = () => {
           console.log({ err });
         });
     }
-    return () => {
+    /*  return () => {
       // Cleanup function to clear quiz state when component unmounts
       dispatch(clearQuizState());
-    };
+    }; */
   }, []);
 
   if (quizLoad) return <Loader />;
@@ -70,9 +71,9 @@ const RandomQuizScreen = () => {
 
   if (!randomQuiz) return null; // Wait for quiz to load
 
-  const { _id, stepIds, score } = randomQuiz;
-  const currentStepIndex = stepIds.indexOf(lastStep);
-
+  const { _id, steps } = randomQuiz;
+  const currentStep =
+    steps.indexOf(lastStep) == 0 ? 1 : steps.indexOf(lastStep) + 1;
   // Handler to submit an answer for the current step.
   const handleSubmitAnswer = async (answer, mode, lastQuestion) => {
     try {
@@ -88,7 +89,7 @@ const RandomQuizScreen = () => {
           setResult({
             score: response.isCorrect ? score + 1 : score,
             //asnwers: Object.values(steps).map((step) => step.answer),
-            total: stepIds.length,
+            total: steps.length,
             quizName: randomQuiz.name,
           })
         );
@@ -97,6 +98,7 @@ const RandomQuizScreen = () => {
         navigate("/");
         return;
       }
+
       dispatch(
         updateScore({
           _id: lastStep,
@@ -104,33 +106,14 @@ const RandomQuizScreen = () => {
           answer,
         })
       );
-
-      toast.dismiss();
+      console.log(steps[currentStep]);
+      dispatch(setLastStep(steps[currentStep]));
+      //toast.dismiss();
       toast.success(response.isCorrect ? "Correct!" : "Incorrect!");
-      dispatch(setLastStep(stepIds[currentStepIndex + 1]));
     } catch (err) {
       toast.error(err?.message || "Something went wrong");
     }
   };
-
-  // Check if the quiz is finished.
-  /*  if (endQuiz) {
-    return (
-      <Container className="text-center mt-5">
-        <h1>Quiz Completed!</h1>
-        <p>
-          Your score: {score} / {stepIds.length}
-        </p>
-        <Button
-          variant="primary"
-          onClick={() => navigate("/")}
-          className="me-3"
-        >
-          Go to Home
-        </Button>
-      </Container>
-    );
-  } */
 
   return (
     <Container className="mt-5">
@@ -138,11 +121,11 @@ const RandomQuizScreen = () => {
       {/* StepDisplay component fetches and shows the step details */}
       <StepDisplay stepId={lastStep} onAnswer={handleSubmitAnswer} />
       {answerLoad && <Loader />}
-      {answerErr && (
+      {/* {answerErr && (
         <Alert variant="danger" className="mt-3">
           Error: {answerErr.data?.message || "Something went wrong"}
         </Alert>
-      )}
+      )} */}
     </Container>
   );
 };

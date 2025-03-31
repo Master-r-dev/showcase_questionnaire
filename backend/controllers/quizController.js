@@ -40,13 +40,13 @@ const generateRandomQuiz = asyncHandler(async (req, res) => {
   let size = parseInt(req.body.size) || 6;
   size = size > 16 ? 16 : size;
   // Randomly select 'size' number of steps from the Step collection.
-  const steps = await Step.aggregate([{ $sample: { size } }]);
-  const stepIds = steps.map((step) => step._id);
+  const stepObs = await Step.aggregate([{ $sample: { size } }]);
+  const steps = stepObs.map((step) => step._id);
   if (req.user) {
     // for logged in users, save the quiz in history
     const quiz = await Quiz.create({
       name: `Random Quiz ${req.user.email}: ${Date.now()}`,
-      steps: stepIds,
+      steps: steps,
     });
     const history = await History.create({
       user: req.user._id,
@@ -57,19 +57,15 @@ const generateRandomQuiz = asyncHandler(async (req, res) => {
     // Save the quiz in the user's history
     req.user.history.push(history._id);
     await req.user.save();
-    await redisClient.setex(quiz._id, 1800, JSON.stringify(stepIds));
-    return res
-      .status(200)
-      .json({ _id: quiz._id, name: "Temp Quiz", stepIds, score: 0 });
+    await redisClient.setex(quiz._id, 1800, JSON.stringify(steps));
+    return res.status(200).json({ _id: quiz._id, name: "Temp Quiz", steps });
   }
   // Generate a temporary quiz ID using a UUID-like format.
   const tempQuizId = `temp-quiz-${req.ip}`;
 
   // Quiz with time limit
-  await redisClient.setex(tempQuizId, 1800, JSON.stringify(stepIds));
-  res
-    .status(200)
-    .json({ _id: tempQuizId, name: "Temp Quiz", stepIds, score: 0 });
+  await redisClient.setex(tempQuizId, 1800, JSON.stringify(steps));
+  res.status(200).json({ _id: tempQuizId, name: "Temp Quiz", steps });
 });
 
 // @desc    Answer a step for a random cached quiz
@@ -101,17 +97,17 @@ const answerRandomQuizStep = asyncHandler(async (req, res) => {
     throw new Error("Quiz not found or expired");
   }
 
-  const stepIds = JSON.parse(cachedSteps);
+  const steps = JSON.parse(cachedSteps);
 
   // Check if the stepId exists in the cached steps
-  if (!stepIds.includes(stepId)) {
+  if (!steps.includes(stepId)) {
     res.status(400);
     throw new Error("Step does not belong to the specified quiz");
   }
 
-  const step = await Step.findById(stepId).select(
-    "question mode correctAnswers"
-  );
+  const step = await Step.findById(stepId)
+    .select("question mode correctAnswers")
+    .lean();
 
   if (!step) {
     res.status(404);
@@ -142,8 +138,8 @@ const answerRandomQuizStep = asyncHandler(async (req, res) => {
       isCorrect,
     });
     userQuiz.score += isCorrect ? 1 : 0;
-    userQuiz.lastStep = stepIds.indexOf(stepId); // to show the last step answered
-    if (userQuiz.progress.length === stepIds.length) {
+    userQuiz.lastStep = steps.indexOf(stepId); // to show the last step answered
+    if (userQuiz.progress.length === steps.length) {
       userQuiz.completed = true;
     }
     await userQuiz.save();
@@ -170,7 +166,7 @@ const createQuiz = asyncHandler(async (req, res) => {
 // @route   GET /api/quiz/:id
 // @access  Public
 const getQuizById = asyncHandler(async (req, res) => {
-  const quiz = await Quiz.findById(req.params.id); //.populate("steps");
+  const quiz = await Quiz.findById(req.params.id).lean(); //.populate("steps");
 
   if (quiz) {
     res.status(200).json(quiz);
@@ -237,7 +233,7 @@ const editQuiz = asyncHandler(async (req, res) => {
 // @route   GET /api/quiz/step/:id
 // @access  Public
 const getStepById = asyncHandler(async (req, res) => {
-  const step = await Step.findById(req.params.id);
+  const step = await Step.findById(req.params.id).lean();
 
   if (step) {
     res.status(200).json(step);
@@ -266,9 +262,12 @@ const startQuiz = asyncHandler(async (req, res) => {
   }
 
   // Check if the user already has a quiz entry with this ID by query to History collection
-  const history = await History.findOne({ user: req.user._id, quiz: quizId });
+  const history = await History.findOne({
+    user: req.user._id,
+    quiz: quizId,
+  }).lean();
   if (history) {
-    res.status(404);
+    res.status(400);
     throw new Error("This Quiz already started");
   }
   // Create a new history entry for the user
@@ -280,11 +279,13 @@ const startQuiz = asyncHandler(async (req, res) => {
   });
 
   // Save the quiz in the user's history
-  req.user.history.push(history._id);
+  req.user.history.push(newHistory._id);
   await req.user.save();
-  res
-    .status(200)
-    .json({ name: quiz.name, steps: quiz.steps, history: newHistory._id });
+  res.status(200).json({
+    name: quiz.name,
+    steps: quiz.steps,
+    history: newHistory._id,
+  });
 });
 
 // @desc    Answer a step (with history tracking)
@@ -298,9 +299,9 @@ const answerStep = asyncHandler(async (req, res) => {
     throw new Error("Answer is required");
   }
 
-  const step = await Step.findById(stepId).select(
-    "question mode correctAnswers"
-  );
+  const step = await Step.findById(stepId)
+    .select("question mode correctAnswers")
+    .lean();
 
   if (!step) {
     res.status(404);

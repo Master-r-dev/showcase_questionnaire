@@ -37,14 +37,14 @@ const Header = () => {
             <Nav className="ms-auto">
               {userInfo ? (
                 <>
-                  {/* {currentQuiz?._id && (
-                    <LinkContainer to={`/quiz/fixed/${currentQuiz._id}`}>
+                  {currentQuiz?._id && (
+                    <LinkContainer to={`/quiz/${currentQuiz._id}`}>
                       <Nav.Link>Resume Quiz</Nav.Link>
                     </LinkContainer>
                   )}
                   <LinkContainer to="/quizzes">
                     <Nav.Link>Choose Quiz</Nav.Link>
-                  </LinkContainer> */}
+                  </LinkContainer>
                   <LinkContainer to="/profile">
                     <Nav.Link>See History</Nav.Link>
                   </LinkContainer>

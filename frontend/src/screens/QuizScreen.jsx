@@ -12,6 +12,7 @@ import {
   setCurrentQuiz,
   clearQuizState,
   setResult,
+  setSteps,
   updateScore,
   setLastStep,
 } from "../slices/quizSlice";
@@ -22,105 +23,125 @@ import Loader from "../components/Loader";
 const QuizScreen = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
-  toast.error("In Progress");
-
-  // Get quiz ID from URL parameters using useParams hook.
-
   const { id: quizId } = useParams();
 
   // Validate quizId on mount.
-  useEffect(() => {
-    if (!quizId || !/^[0-9a-fA-F]{24}$/.test(quizId)) {
-      toast.error(`Invalid quiz ID: ${quizId}`);
-      navigate("/");
-    }
-  }, [quizId, navigate]);
 
   // Fetch user's history for this quiz.
   const {
     data: historyData,
     isLoading: historyLoad,
     error: historyErr,
-  } = useGetUserHistoryByIdQuery(quizId, { skip: !quizId });
-
+  } = useGetUserHistoryByIdQuery(quizId);
+  // Handler to submit an answer for the current step.
+  const [answerStep, { isLoading: answerLoad, error: answerErr }] =
+    useAnswerStepMutation();
   // Mutation hook for starting a new quiz.
   const [startQuiz] = useStartQuizMutation();
-
-  // Get quiz details if already loaded in state.
-  const quizFromState = useSelector((state) => state.quiz.currentQuiz);
-  const lastStep = useSelector(
-    (state) =>
-      state.quiz.lastStep ||
-      (state.quiz.currentQuiz && state.quiz.currentQuiz.stepIds[0])
-  );
-
-  // Fetch quiz details from backend if not already in state.
+  // **Always call this hook unconditionally!**
   const {
     data: quizFromQuery,
     isLoading: quizLoad,
     error: quizErr,
-  } = useGetQuizByIdQuery(quizId, { skip: !!quizFromState });
+  } = useGetQuizByIdQuery(quizId);
 
-  const currentQuiz = quizFromState || quizFromQuery;
+  // Get quiz details if already loaded in state.
+  const currentQuiz = useSelector((state) => state.quiz.currentQuiz);
+  const lastStep = useSelector((state) => state.quiz.lastStep);
+  const stepsFetched = useSelector((state) => state.quiz.steps);
+  const score = useSelector((state) => state.quiz.score);
 
   // When history data is available, decide whether to use existing history or start a new quiz.
   useEffect(() => {
-    if (historyData) {
-      if (historyData.progress && historyData.progress.length > 0) {
-        // Quiz already started: set lastStep from the last history entry.
-        const lastProgress =
-          historyData.progress[historyData.progress.length - 1].step;
-        dispatch(setLastStep(lastProgress));
-      } else {
-        // No history exists: start a new quiz.
-        startQuiz(quizId)
-          .unwrap()
-          .then((quizData) => {
-            console.log(quizData);
-            dispatch(setCurrentQuiz(quizData));
-            dispatch(setLastStep(quizData.stepIds[0]));
-          })
-          .catch((err) => {
-            toast.error(err?.data?.message || "Failed to start quiz");
-            navigate("/");
-          });
-      }
+    if (!quizId || !/^[0-9a-fA-F]{24}$/.test(quizId)) {
+      toast.error(`Invalid quiz ID: ${quizId}`);
+      navigate("/");
+      return;
     }
-  }, [historyData, dispatch, quizId, startQuiz, navigate]);
+
+    if (quizErr || historyErr) {
+      toast.error(
+        quizErr?.data?.message ||
+          historyErr?.data?.message ||
+          "Failed to start quiz"
+      );
+      navigate("/");
+      return;
+    }
+
+    if (quizLoad || historyLoad) return;
+
+    if (historyData) {
+      //need to fill state.steps=history.progress
+      // (to each [history.progress.step]={answer,... and other step fields})
+      // last step is last entry in history.progress - should be muted
+      const lastProgress =
+        historyData.progress.length > 0
+          ? historyData.progress[historyData.progress.length - 1].step
+          : null;
+      //clear prev state
+      dispatch(setCurrentQuiz(quizFromQuery));
+      if (lastProgress && Object.values(stepsFetched).length > 0) {
+        dispatch(setLastStep(lastProgress));
+        console.log(historyData.progress);
+        const formattedSteps = historyData.progress.reduce(
+          (acc, { step, ...rest }) => {
+            acc[step] = { answer: rest.answer };
+            return acc;
+          },
+          {}
+        );
+        console.log(formattedSteps);
+        dispatch(setSteps(formattedSteps));
+      } else {
+        dispatch(setLastStep(quizFromQuery.steps[0]));
+      }
+    } else if (quizId) {
+      // Ensure quizId is valid before calling startQuiz
+      const startNewQuiz = async () => {
+        try {
+          const quizData = await startQuiz(quizId).unwrap(); // Always use `.unwrap()` for mutations
+          //clear prev state
+          dispatch(setCurrentQuiz(quizData));
+          dispatch(setLastStep(quizData.steps[0]));
+        } catch (err) {
+          toast.error(err?.data?.message || "Failed to start quiz");
+        }
+      };
+
+      startNewQuiz();
+    }
+  }, [
+    quizId,
+    quizErr,
+    historyErr,
+    historyData,
+    historyLoad,
+    quizFromQuery,
+    dispatch,
+    navigate,
+    startQuiz, // Ensure it's tracked properly
+  ]);
 
   // If quizFromState changes to a new value, update it.
-  if (
+  /* if (
     quizFromState &&
     JSON.stringify(quizFromState) !== JSON.stringify(currentQuiz)
   ) {
     dispatch(setCurrentQuiz(currentQuiz));
   }
+ */
 
   if (quizLoad || historyLoad) return <Loader />;
-  if (quizErr)
-    return (
-      <Container className="d-flex justify-content-center">
-        <Card className="p-5 d-flex flex-column align-items-center hero-card bg-light w-75">
-          <h1 className="text-center mb-4">Error</h1>
-          <p className="text-center mb-4">
-            Error generating quiz: {quizErr.error || "Unknown error"}
-          </p>
-        </Card>
-      </Container>
-    );
   if (!currentQuiz) return null; // Wait for quiz to load
+  const { steps } = currentQuiz;
+  console.log(currentQuiz);
+  const currentStepIndex = steps.indexOf(lastStep);
 
-  const { _id, stepIds, score } = currentQuiz;
-  const currentStepIndex = stepIds.indexOf(lastStep);
-
-  // Handler to submit an answer for the current step.
-  const [answerStep, { isLoading: answerLoad, error: answerErr }] =
-    useAnswerStepMutation();
   const handleSubmitAnswer = async (answer, mode, lastQuestion) => {
     try {
       const response = await answerStep({
-        quizId: _id,
+        quizId: quizId,
         stepId: lastStep,
         answer,
         mode,
@@ -130,7 +151,7 @@ const QuizScreen = () => {
         dispatch(
           setResult({
             score: response.isCorrect ? score + 1 : score,
-            total: stepIds.length,
+            total: steps.length,
             quizName: currentQuiz.name,
           })
         );
@@ -146,7 +167,8 @@ const QuizScreen = () => {
         })
       );
       toast.success(response.isCorrect ? "Correct!" : "Incorrect!");
-      dispatch(setLastStep(stepIds[currentStepIndex + 1]));
+      //console.log(steps[currentStepIndex + 1]);
+      dispatch(setLastStep(steps[currentStepIndex + 1]));
     } catch (err) {
       toast.error(err?.message || "Something went wrong");
     }
@@ -155,14 +177,13 @@ const QuizScreen = () => {
   return (
     <Container className="mt-5">
       <h2>{currentQuiz.name || "Loading..."}</h2>
-      {/* StepDisplay component fetches and shows the step details */}
       <StepDisplay stepId={lastStep} onAnswer={handleSubmitAnswer} />
       {answerLoad && <Loader />}
-      {answerErr && (
+      {/*  {answerErr && (
         <Alert variant="danger" className="mt-3">
           Error: {answerErr.data?.message || "Something went wrong"}
         </Alert>
-      )}
+      )} */}
     </Container>
   );
 };
