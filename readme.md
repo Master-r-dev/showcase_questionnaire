@@ -2,6 +2,8 @@
 
 A comprehensive MERN stack starter application for building dynamic questionnaire systems with robust authentication and modern SPA architecture. Leveraging Vite for rapid development and optimized production builds, this codebase provides a complete solution integrating both frontend and backend functionalities.
 
+NOTE: The React app was built under a tight 2-day time constraint, so the focus was on delivering core functionality and getting the full stack flow working end-to-end. Due to the limited time, some frontend blocks weren’t abstracted into separate components yet, and backend integration is partially stubbed. If given a bit more time, I’d break out repeated logic, clean up state handling, and finalize the backend hooks properly. It’s intentionally kept in this state to demonstrate functionality while leaving room to discuss potential improvements and showcase my decision-making process during the technical interview.
+
 ## Overview
 
 - **MERN Stack Integration:** Utilizes MongoDB, Express, React, and Node.js to deliver a full-stack application.
